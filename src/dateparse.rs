@@ -1,7 +1,7 @@
 use regex::Regex;
 
 pub fn dateparse(input: String) -> Option<u64> {
-    lazy_static! {
+    lazy_static::lazy_static! {
         static ref YEARS: Regex = Regex::new(r"(?P<y>\d+)y").unwrap();
         static ref MONTHS: Regex = Regex::new(r"(?P<m>\d+)m").unwrap();
         static ref WEEKS: Regex = Regex::new(r"(?P<w>\d+)w").unwrap();

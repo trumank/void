@@ -45,6 +45,6 @@ pub fn init_screen_log() -> Result<(), SetLoggerError> {
 
 pub fn read_logs() -> Vec<String> { LOGS.read().unwrap().clone() }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref LOGS: RwLock<Vec<String>> = RwLock::new(vec![]);
 }

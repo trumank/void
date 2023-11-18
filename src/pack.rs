@@ -1,5 +1,7 @@
 use std::cmp;
 
+use log::trace;
+
 use crate::Coords;
 
 #[derive(Debug)]

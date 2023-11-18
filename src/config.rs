@@ -5,6 +5,7 @@ use std::{
     io::{self, Error, ErrorKind, Read},
 };
 
+use log::{error, warn};
 use termion::event::{Event, Key, MouseEvent};
 
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]

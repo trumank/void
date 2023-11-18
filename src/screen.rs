@@ -9,6 +9,7 @@ use std::{
     process,
 };
 
+use log::{debug, error, info, trace, warn};
 use termion::{
     clear, color, cursor,
     event::{Event, Key},
@@ -342,7 +343,7 @@ impl Screen {
     }
 
     fn node_priority(&self, node_id: NodeID) -> Option<usize> {
-        lazy_static! {
+        lazy_static::lazy_static! {
             static ref RE: Regex = Regex::new(r"#prio=(\d+)").unwrap();
         }
         self.with_node(node_id, |n| n.content.clone())
@@ -721,7 +722,7 @@ impl Screen {
 
     fn unselect(&mut self) -> Option<NodeID> {
         trace!("unselect()");
-        lazy_static! {
+        lazy_static::lazy_static! {
             static ref RE_DATE: Regex = Regex::new(r"\[(\S+)\]").unwrap();
         }
         if let Some(selected_id) = self.selected {
@@ -2189,7 +2190,7 @@ impl Screen {
     }
 
     fn format_node(&mut self, raw_node: &Node) -> Node {
-        lazy_static! {
+        lazy_static::lazy_static! {
             //// general subtree population and modification
             // limit shows the top N results.
             static ref RE_LIMIT: Regex = Regex::new(r"#limit=(\d+)").unwrap();

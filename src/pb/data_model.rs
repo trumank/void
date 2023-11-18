@@ -205,8 +205,8 @@ impl ::protobuf::Message for Tag {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -425,8 +425,8 @@ impl ::protobuf::Message for Gps {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -830,8 +830,8 @@ impl ::protobuf::Message for Meta {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -1593,8 +1593,8 @@ impl ::protobuf::Message for Node {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -1879,8 +1879,8 @@ impl ::protobuf::Message for Arrow {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -2147,8 +2147,8 @@ impl ::protobuf::Message for Screen {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
 
     fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
