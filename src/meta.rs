@@ -25,19 +25,11 @@ impl Default for Meta {
 }
 
 impl Meta {
-    pub fn bump_mtime(&mut self) {
-        self.mtime = now().as_secs();
-    }
+    pub fn bump_mtime(&mut self) { self.mtime = now().as_secs(); }
 
-    pub fn finish(&mut self) {
-        self.finish_time = Some(now().as_secs());
-    }
+    pub fn finish(&mut self) { self.finish_time = Some(now().as_secs()); }
 
-    pub fn unfinish(&mut self) {
-        self.finish_time = None;
-    }
+    pub fn unfinish(&mut self) { self.finish_time = None; }
 
-    pub fn at(&self) -> u64 {
-        self.finish_time.unwrap_or(self.mtime)
-    }
+    pub fn at(&self) -> u64 { self.finish_time.unwrap_or(self.mtime) }
 }

@@ -144,16 +144,12 @@ impl Screen {
     }
 
     pub fn with_node<B, F>(&self, k: NodeID, mut f: F) -> Option<B>
-    where
-        F: FnMut(&Node) -> B,
-    {
+    where F: FnMut(&Node) -> B {
         self.nodes.get(&k).map(|node| f(node))
     }
 
     fn with_node_mut<B, F>(&mut self, k: NodeID, mut f: F) -> Option<B>
-    where
-        F: FnMut(&mut Node) -> B,
-    {
+    where F: FnMut(&mut Node) -> B {
         self.nodes.get_mut(&k).map(|mut node| {
             node.meta.bump_mtime();
             f(&mut node)
@@ -161,9 +157,7 @@ impl Screen {
     }
 
     fn with_node_mut_no_meta<B, F>(&mut self, k: NodeID, mut f: F) -> Option<B>
-    where
-        F: FnMut(&mut Node) -> B,
-    {
+    where F: FnMut(&mut Node) -> B {
         self.nodes.get_mut(&k).map(|mut node| f(&mut node))
     }
 
@@ -174,27 +168,27 @@ impl Screen {
                 Action::LeftClick(x, y) => {
                     let internal_coords = self.screen_to_internal_xy((x, y));
                     self.click_screen(internal_coords)
-                }
+                },
                 Action::RightClick(..) => {
                     self.pop_focus();
-                }
+                },
                 Action::Release(x, y) => {
                     let internal_coords = self.screen_to_internal_xy((x, y));
                     self.release(internal_coords)
-                }
+                },
                 // Write character to selection
                 Action::Char(c) if self.selected.is_some() => {
                     self.append(c);
-                }
+                },
                 Action::Char('/') => {
                     self.search_forward();
-                }
+                },
                 Action::Char('?') => {
                     self.search_backward();
-                }
+                },
                 Action::Char(c) => {
                     self.prefix_jump_to(c.to_string());
-                }
+                },
                 Action::Help => self.help(),
                 Action::UnselectRet => return self.unselect().is_some(),
                 Action::ScrollUp => self.scroll_up(),
@@ -236,9 +230,7 @@ impl Screen {
         true
     }
 
-    fn exists(&self, node_id: NodeID) -> bool {
-        self.nodes.get(&node_id).is_some()
-    }
+    fn exists(&self, node_id: NodeID) -> bool { self.nodes.get(&node_id).is_some() }
 
     fn cut_paste(&mut self) {
         if let Some(selected_id) = self.selected {
@@ -416,13 +408,9 @@ impl Screen {
         }
     }
 
-    fn search_forward(&mut self) {
-        self.search(SearchDirection::Forward)
-    }
+    fn search_forward(&mut self) { self.search(SearchDirection::Forward) }
 
-    fn search_backward(&mut self) {
-        self.search(SearchDirection::Backward)
-    }
+    fn search_backward(&mut self) { self.search(SearchDirection::Backward) }
 
     fn search(&mut self, direction: SearchDirection) {
         trace!("search()");
@@ -532,9 +520,7 @@ impl Screen {
     }
 
     fn find_visible_nodes<F>(&self, mut filter: F) -> Vec<NodeID>
-    where
-        F: FnMut(NodeID) -> bool,
-    {
+    where F: FnMut(NodeID) -> bool {
         self.drawn_at
             .keys()
             .filter(|&node_id| self.node_is_visible(*node_id).unwrap())
@@ -673,9 +659,7 @@ impl Screen {
     }
 
     pub fn recursive_child_filter_map<F, B>(&self, node_id: NodeID, filter_map: &mut F) -> Vec<B>
-    where
-        F: FnMut(&Node) -> Option<B>,
-    {
+    where F: FnMut(&Node) -> Option<B> {
         trace!("recursive_child_filter_map({}, F...)", node_id);
         let mut ret = vec![];
 
@@ -965,9 +949,7 @@ impl Screen {
         }
     }
 
-    fn toggle_show_logs(&mut self) {
-        self.show_logs = !self.show_logs;
-    }
+    fn toggle_show_logs(&mut self) { self.show_logs = !self.show_logs; }
 
     fn create_child(&mut self) {
         if let Some(mut selected_id) = self.selected {
@@ -1134,13 +1116,9 @@ impl Screen {
         }
     }
 
-    pub fn drawn_at(&self, node_id: NodeID) -> Option<&Coords> {
-        self.drawn_at.get(&node_id)
-    }
+    pub fn drawn_at(&self, node_id: NodeID) -> Option<&Coords> { self.drawn_at.get(&node_id) }
 
-    pub fn lookup(&self, coords: Coords) -> Option<&NodeID> {
-        self.lookup.get(&coords)
-    }
+    pub fn lookup(&self, coords: Coords) -> Option<&NodeID> { self.lookup.get(&coords) }
 
     fn lineage(&self, node_id: NodeID) -> Vec<NodeID> {
         let mut lineage = vec![node_id];
@@ -1285,13 +1263,9 @@ impl Screen {
         }
     }
 
-    fn select_next_sibling(&mut self) {
-        self.select_neighbor(SearchDirection::Forward);
-    }
+    fn select_next_sibling(&mut self) { self.select_neighbor(SearchDirection::Forward); }
 
-    fn select_prev_sibling(&mut self) {
-        self.select_neighbor(SearchDirection::Backward);
-    }
+    fn select_prev_sibling(&mut self) { self.select_neighbor(SearchDirection::Backward); }
 
     fn select_neighbor(&mut self, dir: SearchDirection) -> Option<NodeID> {
         use SearchDirection::*;
@@ -1507,18 +1481,14 @@ impl Screen {
     }
 
     fn select_relative<F, O: Ord + Clone>(&mut self, filter_cost: F)
-    where
-        F: FnMut((Coords, Coords), (Coords, Coords)) -> Option<O>,
-    {
+    where F: FnMut((Coords, Coords), (Coords, Coords)) -> Option<O> {
         if let Some(node_id) = self.find_relative_node(filter_cost) {
             self.select_node(node_id);
         }
     }
 
     fn find_relative_node<F, O: Ord + Clone>(&mut self, mut filter_cost: F) -> Option<NodeID>
-    where
-        F: FnMut((Coords, Coords), (Coords, Coords)) -> Option<O>,
-    {
+    where F: FnMut((Coords, Coords), (Coords, Coords)) -> Option<O> {
         let default_coords = (self.dims.0 / 2, self.dims.1 / 2);
         let rel_def_coords = self.screen_to_internal_xy(default_coords);
 
@@ -1663,9 +1633,7 @@ impl Screen {
         }
     }
 
-    pub fn occupied(&self, coords: Coords) -> bool {
-        self.lookup.contains_key(&coords)
-    }
+    pub fn occupied(&self, coords: Coords) -> bool { self.lookup.contains_key(&coords) }
 
     pub fn add_or_remove_arrow(&mut self) {
         if self.drawing_arrow.is_none() {
@@ -2351,14 +2319,14 @@ impl Screen {
                         }
                     }
                     None
-                }
+                },
                 PlotType::New => {
                     if n.meta.ctime >= since {
                         Some(n.meta.ctime as i64)
                     } else {
                         None
                     }
-                }
+                },
             });
             nodes.append(&mut new);
         }
@@ -2378,6 +2346,4 @@ enum PlotType {
     Done,
 }
 
-fn visible(view_y: u16, height: u16, y: u16) -> bool {
-    y > view_y && y < view_y + height
-}
+fn visible(view_y: u16, height: u16, y: u16) -> bool { y > view_y && y < view_y + height }

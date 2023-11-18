@@ -7,9 +7,7 @@ struct ScreenLogger;
 static SCREEN_LOGGER: ScreenLogger = ScreenLogger;
 
 impl log::Log for ScreenLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info
-    }
+    fn enabled(&self, metadata: &Metadata) -> bool { metadata.level() <= Level::Info }
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
@@ -45,9 +43,7 @@ pub fn init_screen_log() -> Result<(), SetLoggerError> {
     log::set_logger(&SCREEN_LOGGER)
 }
 
-pub fn read_logs() -> Vec<String> {
-    LOGS.read().unwrap().clone()
-}
+pub fn read_logs() -> Vec<String> { LOGS.read().unwrap().clone() }
 
 lazy_static! {
     static ref LOGS: RwLock<Vec<String>> = RwLock::new(vec![]);
