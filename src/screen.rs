@@ -1,6 +1,6 @@
 use std::{
     self,
-    cmp::{max, min},
+    cmp::{max, min, Ordering},
     collections::{BTreeMap, BinaryHeap, HashMap, HashSet},
     env,
     fmt::Write as FmtWrite,
@@ -82,8 +82,10 @@ pub struct Screen {
 
 impl Default for Screen {
     fn default() -> Screen {
-        let mut root = Node::default();
-        root.content = "home".to_owned();
+        let root = Node {
+            content: "home".to_owned(),
+            ..Default::default()
+        };
         let mut screen = Screen {
             autosave_every: 25,
             config: Config::default(),
@@ -144,22 +146,22 @@ impl Screen {
         id
     }
 
-    pub fn with_node<B, F>(&self, k: NodeID, mut f: F) -> Option<B>
+    pub fn with_node<B, F>(&self, k: NodeID, f: F) -> Option<B>
     where F: FnMut(&Node) -> B {
-        self.nodes.get(&k).map(|node| f(node))
+        self.nodes.get(&k).map(f)
     }
 
     fn with_node_mut<B, F>(&mut self, k: NodeID, mut f: F) -> Option<B>
     where F: FnMut(&mut Node) -> B {
-        self.nodes.get_mut(&k).map(|mut node| {
+        self.nodes.get_mut(&k).map(|node| {
             node.meta.bump_mtime();
-            f(&mut node)
+            f(node)
         })
     }
 
-    fn with_node_mut_no_meta<B, F>(&mut self, k: NodeID, mut f: F) -> Option<B>
+    fn with_node_mut_no_meta<B, F>(&mut self, k: NodeID, f: F) -> Option<B>
     where F: FnMut(&mut Node) -> B {
-        self.nodes.get_mut(&k).map(|mut node| f(&mut node))
+        self.nodes.get_mut(&k).map(f)
     }
 
     // return of false signals to the caller that we are done in this view
@@ -348,8 +350,8 @@ impl Screen {
         }
         self.with_node(node_id, |n| n.content.clone())
             .and_then(|c| {
-                if RE.is_match(&*c) {
-                    RE.captures_iter(&*c)
+                if RE.is_match(&c) {
+                    RE.captures_iter(&c)
                         .nth(0)
                         .and_then(|n| n.get(1).unwrap().as_str().parse::<usize>().ok())
                 } else {
@@ -424,8 +426,8 @@ impl Screen {
             SearchDirection::Forward => format!("search{}:", last_search_str),
             SearchDirection::Backward => format!("search backwards{}:", last_search_str),
         };
-        if let Ok(Some(mut query)) = self.prompt(&*prompt) {
-            if query == "" {
+        if let Ok(Some(mut query)) = self.prompt(&prompt) {
+            if query.is_empty() {
                 if let Some((ref last, _)) = self.last_search {
                     query = last.clone();
                 } else {
@@ -488,8 +490,7 @@ impl Screen {
         }
 
         // map an alphanumeric char to each candidate NodeID
-        let mapping: HashMap<&str, NodeID> =
-            chars.split("").skip(1).zip(nodes.into_iter()).collect();
+        let mapping: HashMap<&str, NodeID> = chars.split("").skip(1).zip(nodes).collect();
 
         // clear the prompt
         print!("{}{}", cursor::Goto(1, self.dims.1), clear::AfterCursor);
@@ -551,7 +552,7 @@ impl Screen {
         } else if content.starts_with("txt:") {
             self.exec_text_editor(selected_id);
         } else if content.starts_with("http") {
-            #[cfg(any(target_os = "macos",))]
+            #[cfg(target_os = "macos")]
             let default_open_cmd = "open";
             #[cfg(target_os = "linux")]
             let default_open_cmd = "xdg-open";
@@ -740,9 +741,9 @@ impl Screen {
 
             self.with_node_mut_no_meta(selected_id, |n| {
                 // if parseable date, change date
-                if let Some(date) = re_matches::<String>(&RE_DATE, &*n.content).get(0) {
+                if let Some(date) = re_matches::<String>(&RE_DATE, &n.content).get(0) {
                     if let Some(date) = dateparse(date.clone()) {
-                        n.content = RE_DATE.replace(&*n.content, "").trim_end().to_owned();
+                        n.content = RE_DATE.replace(&n.content, "").trim_end().to_owned();
                         if n.meta.finish_time.is_some() {
                             n.meta.finish_time = Some(date);
                         } else {
@@ -797,11 +798,11 @@ impl Screen {
                         node.selected = true;
                         node_id
                     })
-                    .and_then(|id| {
+                    .map(|id| {
                         self.selected = Some(node_id);
                         self.dragging_from = Some(coords);
                         self.dragging_to = Some(coords);
-                        Some(id)
+                        id
                     })
                     .or_else(|| {
                         trace!("found no node at {:?}", coords);
@@ -834,7 +835,7 @@ impl Screen {
         if let Some(node) = self.nodes.remove(&node_id) {
             // clean up any arrow state
             self.arrows
-                .retain(|&(ref from, ref to)| from != &node_id && to != &node_id);
+                .retain(|(from, to)| from != &node_id && to != &node_id);
 
             // remove from tag_db
             self.tag_db.remove(node_id);
@@ -1506,7 +1507,7 @@ impl Screen {
                 }
             }
         }
-        node_costs.sort_by_key(|&(_, ref cost)| cost.clone());
+        node_costs.sort_by_key(|(_, cost)| cost.clone());
         node_costs.get(0).map(|&(&id, _)| id)
     }
 
@@ -1596,7 +1597,7 @@ impl Screen {
 
         debug!("testing that all arrows are existing nodes");
         // no arrows that don't exist
-        for &(ref a, ref b) in &self.arrows {
+        for (a, b) in &self.arrows {
             assert!(self.nodes.get(a).is_some());
             assert!(self.nodes.get(b).is_some());
         }
@@ -1613,7 +1614,7 @@ impl Screen {
                 warn!("removed stale tmp file");
             }
             let mut f = File::create(&tmp_path).unwrap();
-            f.write_all(&*data).unwrap();
+            f.write_all(&data).unwrap();
             f.sync_all().unwrap();
             rename(tmp_path, path).unwrap();
             info!("saved work to {}", path);
@@ -1645,7 +1646,7 @@ impl Screen {
         if let Some(arrow) = self.selected.map(|to| (from, to)) {
             let (from, to) = arrow;
             if self.nodes.get(&from).is_some() && self.nodes.get(&to).is_some() {
-                let contains = self.arrows.iter().fold(false, |acc, &(ref nl1, ref nl2)| {
+                let contains = self.arrows.iter().fold(false, |acc, (nl1, nl2)| {
                     if nl1 == &from && nl2 == &to {
                         true
                     } else {
@@ -1733,7 +1734,7 @@ impl Screen {
         }
 
         // print arrows
-        for &(ref from, ref to) in &self.arrows {
+        for (from, to) in &self.arrows {
             let (path, (direction1, direction2)) = self.path_between_nodes(*from, *to);
             self.draw_path(path, direction1, direction2);
         }
@@ -1862,7 +1863,7 @@ impl Screen {
             }
             write!(&mut buf, "{}", pre_meta).unwrap();
             write!(&mut buf, "{}", prefix).unwrap();
-            if prefix != "" {
+            if !prefix.is_empty() {
                 // only anchor will have blank prefix
                 if last {
                     write!(&mut buf, "└─").unwrap();
@@ -1882,7 +1883,7 @@ impl Screen {
                 write!(&mut buf, " ").unwrap();
             }
             // keep color for selected & tree root Fg
-            if !node.selected && prefix != "" {
+            if !node.selected && !prefix.is_empty() {
                 write!(&mut buf, "{}", reset).unwrap();
             }
 
@@ -1934,8 +1935,8 @@ impl Screen {
         let mut prefix = prefix;
         if last {
             prefix.push_str("   ");
-        } else if prefix == "" {
-            prefix.push_str(" ");
+        } else if prefix.is_empty() {
+            prefix.push(' ');
         } else {
             prefix.push_str("│  ");
         }
@@ -1968,48 +1969,50 @@ impl Screen {
             .collect();
         trace!("draw_path({:?}, {:?}, {:?})", path, start_dir, dest_dir);
         print!("{}", random_fg_color());
-        if path.len() == 1 {
-            print!("{} ↺", cursor::Goto(path[0].0, path[0].1))
-        } else if path.len() > 1 {
-            let first = if path[1].1 > path[0].1 {
-                match start_dir {
-                    Dir::R => '┐',
-                    Dir::L => '┌',
-                }
-            } else if path[1].1 < path[0].1 {
-                match start_dir {
-                    Dir::R => '┘',
-                    Dir::L => '└',
-                }
-            } else {
-                '─'
-            };
-
-            print!("{}{}", cursor::Goto(path[0].0, path[0].1), first);
-            for items in path.windows(3) {
-                let (p, this, n) = (items[0], items[1], items[2]);
-                let c = if p.0 == n.0 {
-                    '│'
-                } else if p.1 == n.1 {
-                    '─'
-                } else if (this.1 < p.1 && this.0 < n.0) || (this.0 < p.0 && this.1 < n.1) {
-                    '┌' // up+right or left+down
-                } else if (this.0 > p.0 && this.1 > n.1) || (this.1 > p.1 && this.0 > n.0) {
-                    '┘' // right+up or down+left
-                } else if (this.0 > p.0 && this.1 < n.1) || (this.1 < p.1 && this.0 > n.0) {
-                    '┐' // right+down or up+left
-                } else {
-                    '└' // down+right or left+up
+        match path.len().cmp(&1) {
+            Ordering::Equal => {
+                print!("{} ↺", cursor::Goto(path[0].0, path[0].1))
+            },
+            Ordering::Greater => {
+                let first = match path[1].1.cmp(&path[0].1) {
+                    Ordering::Greater => match start_dir {
+                        Dir::R => '┐',
+                        Dir::L => '┌',
+                    },
+                    Ordering::Less => match start_dir {
+                        Dir::R => '┘',
+                        Dir::L => '└',
+                    },
+                    Ordering::Equal => '─',
                 };
 
-                print!("{}{}", cursor::Goto(this.0, this.1), c)
-            }
-            let (end_x, end_y) = (path[path.len() - 1].0, path[path.len() - 1].1);
-            let end_char = match dest_dir {
-                Dir::L => '>',
-                Dir::R => '<',
-            };
-            print!("{}{}", cursor::Goto(end_x, end_y), end_char);
+                print!("{}{}", cursor::Goto(path[0].0, path[0].1), first);
+                for items in path.windows(3) {
+                    let (p, this, n) = (items[0], items[1], items[2]);
+                    let c = if p.0 == n.0 {
+                        '│'
+                    } else if p.1 == n.1 {
+                        '─'
+                    } else if (this.1 < p.1 && this.0 < n.0) || (this.0 < p.0 && this.1 < n.1) {
+                        '┌' // up+right or left+down
+                    } else if (this.0 > p.0 && this.1 > n.1) || (this.1 > p.1 && this.0 > n.0) {
+                        '┘' // right+up or down+left
+                    } else if (this.0 > p.0 && this.1 < n.1) || (this.1 < p.1 && this.0 > n.0) {
+                        '┐' // right+down or up+left
+                    } else {
+                        '└' // down+right or left+up
+                    };
+
+                    print!("{}{}", cursor::Goto(this.0, this.1), c)
+                }
+                let (end_x, end_y) = (path[path.len() - 1].0, path[path.len() - 1].1);
+                let end_char = match dest_dir {
+                    Dir::L => '>',
+                    Dir::R => '<',
+                };
+                print!("{}{}", cursor::Goto(end_x, end_y), end_char);
+            },
+            Ordering::Less => {},
         }
         print!("{}", color::Fg(color::Reset));
     }
@@ -2027,7 +2030,7 @@ impl Screen {
         let (plot, finished_today) = self.last_week_of_done_tasks();
         let plot_line = format!("│{}│({} today)", plot, finished_today);
 
-        header_text.push_str(&*plot_line);
+        header_text.push_str(&plot_line);
 
         if self.dims.0 > header_text.len() as u16 && self.dims.1 > 1 {
             let mut sep = format!(
@@ -2160,15 +2163,7 @@ impl Screen {
         let last_week = now - (day_in_sec * 7);
         let tasks_finished_in_last_week = self.recursive_child_filter_map(0, &mut |n: &Node| {
             let f = n.meta.finish_time;
-            if let Some(t) = f {
-                if t > last_week {
-                    Some(t)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
+            f.filter(|&t| t > last_week)
         });
         let mut counts = BTreeMap::new();
         for d in 0..7 {
@@ -2184,7 +2179,7 @@ impl Screen {
         let today_normalized = now / day_in_sec * day_in_sec;
         let counts_clone = counts.clone();
         let finished_today = counts_clone[&today_normalized];
-        let week_line: Vec<i64> = counts.into_iter().map(|(_, v)| v).collect();
+        let week_line: Vec<i64> = counts.into_values().collect();
         let plot = plot::plot_sparkline(week_line);
         (plot, finished_today as usize)
     }
@@ -2216,7 +2211,7 @@ impl Screen {
 
         // for tagged queries, AND queries together
         let mut tagged_children: Option<HashSet<NodeID>> = None;
-        for tag in &re_matches::<String>(&RE_TAGGED, &*node.content) {
+        for tag in &re_matches::<String>(&RE_TAGGED, &node.content) {
             let children = self.tag_db.tag_to_nodes(tag);
             if let Some(children_acc) = tagged_children {
                 let children_new = children.into_iter().collect();
@@ -2228,11 +2223,11 @@ impl Screen {
         }
         let queried_nodes = tagged_children
             .map(|tc| tc.into_iter().collect())
-            .unwrap_or_else(|| vec![]);
+            .unwrap_or_default();
 
         let mut since_opt = None;
         let mut until_opt = None;
-        if RE_DONE.is_match(&*node.content) {
+        if RE_DONE.is_match(&node.content) {
             for child in node.children.clone() {
                 let done = self.with_node(child, |c| c.stricken).unwrap();
                 if !done {
@@ -2240,7 +2235,7 @@ impl Screen {
                 }
             }
         }
-        if RE_OPEN.is_match(&*node.content) {
+        if RE_OPEN.is_match(&node.content) {
             for child in node.children.clone() {
                 let open = self.with_node(child, |c| !c.stricken).unwrap();
                 if !open {
@@ -2248,7 +2243,7 @@ impl Screen {
                 }
             }
         }
-        if let Some(since) = re_matches::<String>(&RE_SINCE, &*node.content).get(0) {
+        if let Some(since) = re_matches::<String>(&RE_SINCE, &node.content).get(0) {
             since_opt = dateparse(since.clone());
             if let Some(cutoff) = since_opt {
                 let mut new = vec![];
@@ -2263,7 +2258,7 @@ impl Screen {
                 node.children = new;
             }
         }
-        if let Some(until) = re_matches::<String>(&RE_UNTIL, &*node.content).get(0) {
+        if let Some(until) = re_matches::<String>(&RE_UNTIL, &node.content).get(0) {
             until_opt = dateparse(until.clone());
             if let Some(cutoff) = until_opt {
                 let mut new = vec![];
@@ -2278,20 +2273,20 @@ impl Screen {
                 node.children = new;
             }
         }
-        if RE_REV.is_match(&*node.content) {
+        if RE_REV.is_match(&node.content) {
             node.children = node.children.into_iter().rev().collect();
         }
-        if let Some(&limit) = re_matches(&RE_LIMIT, &*node.content).get(0) {
+        if let Some(&limit) = re_matches(&RE_LIMIT, &node.content).first() {
             node.children.truncate(limit);
         }
 
-        let re_n = re_matches::<usize>(&RE_N, &*node.content);
-        let n_opt = re_n.get(0);
-        if let Some(plot) = re_matches::<String>(&RE_PLOT, &*node.content).get(0) {
+        let re_n = re_matches::<usize>(&RE_N, &node.content);
+        let n_opt = re_n.first();
+        if let Some(plot) = re_matches::<String>(&RE_PLOT, &node.content).get(0) {
             let now = now().as_secs();
             let buckets = n_opt.cloned().unwrap_or(7);
-            let since = since_opt.unwrap_or_else(|| now - 60 * 60 * 24 * 7);
-            let until = until_opt.unwrap_or_else(|| now);
+            let since = since_opt.unwrap_or(now - 60 * 60 * 24 * 7);
+            let until = until_opt.unwrap_or(now);
 
             node.content = match plot.as_str() {
                 "done" => self.plot(queried_nodes, PlotType::Done, buckets, since, until),

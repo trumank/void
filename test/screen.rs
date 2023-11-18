@@ -94,7 +94,7 @@ impl Arbitrary for Content {
         let mut choice = vec![];
 
         for _ in 0..g.gen_range(0, 2) {
-            let command = commands.choose(g).unwrap().clone();
+            let command = commands.choose(g).unwrap();
             let mut chars = command.chars().collect();
             choice.append(&mut chars);
             if g.gen_range(0, 10) > 0 {

@@ -1,6 +1,6 @@
 use fs2::FileExt;
 use std::{ffi::OsString, fs::OpenOptions, io::Read};
-use voidmap::{deserialize_screen, init_screen_log, Config, Screen};
+use voidmap::{deserialize_screen, init_screen_log, Config};
 
 mod cli;
 
@@ -16,9 +16,9 @@ fn main() {
         .value_of("PATH")
         .map(OsString::from)
         .or_else(|| {
-            dirs::home_dir().and_then(|mut h| {
+            dirs::home_dir().map(|mut h| {
                 h.push(".void.db");
-                Some(h.into_os_string())
+                h.into_os_string()
             })
         })
         .unwrap();
@@ -40,7 +40,7 @@ fn main() {
     let saved_screen = deserialize_screen(data).ok();
 
     // Initialise the main working screen
-    let mut screen = saved_screen.unwrap_or_else(Screen::default);
+    let mut screen = saved_screen.unwrap_or_default();
 
     screen.work_path = matches
         .value_of("PATH")

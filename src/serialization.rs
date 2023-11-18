@@ -5,11 +5,7 @@ use crate::{pb, random_fg_color, Meta, Node, Screen};
 pub fn serialize_screen(screen: &Screen) -> Vec<u8> {
     let mut screen_pb = pb::Screen::default();
     screen_pb.set_max_id(screen.max_id);
-    let nodes = screen
-        .nodes
-        .iter()
-        .map(|(_, node)| serialize_node(node))
-        .collect();
+    let nodes = screen.nodes.values().map(serialize_node).collect();
     screen_pb.set_nodes(protobuf::RepeatedField::from_vec(nodes));
     let arrows = screen
         .arrows
@@ -108,7 +104,7 @@ fn deserialize_node(node_pb: &pb::Node) -> Node {
 }
 
 pub fn deserialize_screen(data: Vec<u8>) -> Result<Screen, protobuf::ProtobufError> {
-    let screen_pb: pb::Screen = protobuf::parse_from_bytes(&*data)?;
+    let screen_pb: pb::Screen = protobuf::parse_from_bytes(&data)?;
     let mut screen = Screen::default();
     screen.max_id = screen_pb.get_max_id();
     screen.nodes = screen_pb

@@ -29,7 +29,6 @@ rand = "0.7.3"
 libc = "0.2.80"
 regex = "1.4.2"
 unicode-segmentation = "1.6.0"
-clippy = { version = "0.0.302", optional = true }
 fs2 = "0.4.3"
 
 [dev-dependencies]

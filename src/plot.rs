@@ -9,7 +9,7 @@ where T: Into<i64> {
 
     let mut ret = String::new();
     for n in &nums {
-        if *max as i64 == 0 {
+        if *max == 0 {
             ret.push(BARS[0]);
         } else {
             let idx = (BARS.len() - 1) as i64 * n / max;

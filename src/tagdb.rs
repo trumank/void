@@ -4,18 +4,10 @@ use regex::Regex;
 
 use crate::{re_matches, NodeID};
 
+#[derive(Default)]
 pub struct TagDB {
     node_to_tags: HashMap<NodeID, HashSet<String>>,
     tag_to_nodes: HashMap<String, HashSet<NodeID>>,
-}
-
-impl Default for TagDB {
-    fn default() -> TagDB {
-        TagDB {
-            node_to_tags: HashMap::new(),
-            tag_to_nodes: HashMap::new(),
-        }
-    }
 }
 
 impl TagDB {
@@ -27,14 +19,14 @@ impl TagDB {
 
         self.remove(node);
         self.node_to_tags.insert(node, HashSet::new());
-        let tags = re_matches::<String>(&RE_TAG_KEY_VALUE, &*text);
+        let tags = re_matches::<String>(&RE_TAG_KEY_VALUE, &text);
 
         for tag in &tags {
             if let Some(tags) = self.node_to_tags.get_mut(&node) {
                 tags.insert(tag.clone());
             }
 
-            let mut nodes = self.tag_to_nodes.remove(tag).unwrap_or_else(HashSet::new);
+            let mut nodes = self.tag_to_nodes.remove(tag).unwrap_or_default();
 
             nodes.insert(node);
 
@@ -42,14 +34,14 @@ impl TagDB {
         }
 
         if text.contains('=') {
-            let tags = re_matches::<String>(&RE_TAG_KEY, &*text);
+            let tags = re_matches::<String>(&RE_TAG_KEY, &text);
 
             for tag in &tags {
                 if let Some(tags) = self.node_to_tags.get_mut(&node) {
                     tags.insert(tag.clone());
                 }
 
-                let mut nodes = self.tag_to_nodes.remove(tag).unwrap_or_else(HashSet::new);
+                let mut nodes = self.tag_to_nodes.remove(tag).unwrap_or_default();
 
                 nodes.insert(node);
 
@@ -69,11 +61,11 @@ impl TagDB {
     }
 
     pub fn tag_to_nodes(&self, tag: &str) -> Vec<NodeID> {
-        let mut res = self
+        let mut res: Vec<_> = self
             .tag_to_nodes
             .get(&tag.to_owned())
             .map(|set| set.clone().into_iter().collect())
-            .unwrap_or_else(|| vec![]);
+            .unwrap_or_default();
         res.sort();
         res
     }
