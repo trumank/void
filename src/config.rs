@@ -9,11 +9,18 @@ use log::{error, warn};
 use termion::event::{Event, Key, MouseEvent};
 
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
+pub enum Mode {
+    Normal,
+    Insert,
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
 pub enum Action {
+    Mode(Mode),
     LeftClick(u16, u16),
     RightClick(u16, u16),
     Release(u16, u16),
-    Char(char),
+    Char(Mode, char),
     UnselectRet,
     ScrollUp,
     ScrollDown,
@@ -124,53 +131,54 @@ fn to_key(raw_key: String) -> Option<Key> {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    config: HashMap<Key, Action>,
+    config: HashMap<(Mode, Key), Action>,
 }
 
 impl Default for Config {
     fn default() -> Config {
         use termion::event::Key::*;
         Config {
-            config: vec![
-                (Esc, Action::UnselectRet),
-                (PageUp, Action::ScrollUp),
-                (PageDown, Action::ScrollDown),
-                (Delete, Action::DeleteSelected),
-                (Up, Action::SelectUp),
-                (Down, Action::SelectDown),
-                (Left, Action::SelectLeft),
-                (Right, Action::SelectRight),
-                (Backspace, Action::EraseChar),
-                (F(1), Action::PrefixJump),
-                (Char('\n'), Action::CreateSibling),
-                (Char('\t'), Action::CreateChild),
-                (Ctrl('n'), Action::CreateFreeNode),
-                (Ctrl('k'), Action::ExecSelected),
-                (Ctrl('w'), Action::DrillDown),
-                (Ctrl('q'), Action::PopUp),
-                (Ctrl('f'), Action::PrefixJump),
-                (Ctrl('a'), Action::ToggleCompleted),
-                (Ctrl('h'), Action::ToggleHideCompleted),
-                (Ctrl('r'), Action::Arrow),
-                (Ctrl('p'), Action::AutoArrange),
-                (Ctrl('t'), Action::ToggleCollapsed),
-                (Ctrl('c'), Action::Quit),
-                (Ctrl('x'), Action::Save),
-                (Ctrl('l'), Action::ToggleShowLogs),
-                (Ctrl('e'), Action::EnterCmd),
-                (Ctrl('v'), Action::FindTask),
-                (Ctrl('y'), Action::YankPasteNode),
-                (Ctrl('g'), Action::RaiseSelected),
-                (Ctrl('d'), Action::LowerSelected),
-                (Ctrl('u'), Action::Search),
-                (Ctrl('z'), Action::UndoDelete),
-                (Ctrl('?'), Action::Help),
-                (Alt('P'), Action::SelectParent),
-                (Alt('n'), Action::SelectNextSibling),
-                (Alt('p'), Action::SelectPrevSibling),
+            config: [
+                ((Mode::Normal, Char('i')), Action::Mode(Mode::Insert)),
+                ((Mode::Normal, Char('A')), Action::Mode(Mode::Insert)),
+                ((Mode::Insert, Esc), Action::Mode(Mode::Normal)),
+                ((Mode::Normal, PageUp), Action::ScrollUp),
+                ((Mode::Normal, PageDown), Action::ScrollDown),
+                ((Mode::Normal, Delete), Action::DeleteSelected),
+                ((Mode::Normal, Char('k')), Action::SelectUp),
+                ((Mode::Normal, Char('j')), Action::SelectDown),
+                ((Mode::Normal, Char('h')), Action::SelectLeft),
+                ((Mode::Normal, Char('l')), Action::SelectRight),
+                ((Mode::Insert, Backspace), Action::EraseChar),
+                ((Mode::Normal, F(1)), Action::PrefixJump),
+                ((Mode::Normal, Char('o')), Action::CreateSibling),
+                ((Mode::Normal, Char('\t')), Action::CreateChild),
+                ((Mode::Normal, Char('n')), Action::CreateFreeNode),
+                ((Mode::Normal, Ctrl('k')), Action::ExecSelected),
+                ((Mode::Normal, Ctrl('w')), Action::DrillDown),
+                ((Mode::Normal, Ctrl('q')), Action::PopUp),
+                ((Mode::Normal, Char('f')), Action::PrefixJump),
+                ((Mode::Normal, Ctrl('a')), Action::ToggleCompleted),
+                ((Mode::Normal, Ctrl('h')), Action::ToggleHideCompleted),
+                ((Mode::Normal, Ctrl('r')), Action::Arrow),
+                ((Mode::Normal, Ctrl('p')), Action::AutoArrange),
+                ((Mode::Normal, Char(' ')), Action::ToggleCollapsed),
+                ((Mode::Normal, Ctrl('c')), Action::Quit),
+                ((Mode::Normal, Ctrl('x')), Action::Save),
+                ((Mode::Normal, Ctrl('l')), Action::ToggleShowLogs),
+                ((Mode::Normal, Char(':')), Action::EnterCmd),
+                ((Mode::Normal, Ctrl('v')), Action::FindTask),
+                ((Mode::Normal, Char('y')), Action::YankPasteNode),
+                ((Mode::Normal, Char('K')), Action::RaiseSelected),
+                ((Mode::Normal, Char('J')), Action::LowerSelected),
+                ((Mode::Normal, Char('/')), Action::Search),
+                ((Mode::Normal, Char('u')), Action::UndoDelete),
+                ((Mode::Normal, Ctrl('?')), Action::Help),
+                ((Mode::Normal, Alt('P')), Action::SelectParent),
+                ((Mode::Normal, Ctrl('n')), Action::SelectNextSibling),
+                ((Mode::Normal, Ctrl('p')), Action::SelectPrevSibling),
             ]
-            .into_iter()
-            .collect(),
+            .into(),
         }
     }
 }
@@ -198,7 +206,7 @@ impl Config {
         let mut buf = String::new();
         let mut f = File::open(p)?;
         f.read_to_string(&mut buf)?;
-        let mut config = Config::default();
+        let config = Config::default();
         for (mut line_num, line) in buf.lines().enumerate() {
             if line.is_empty() || line.starts_with('#') {
                 continue;
@@ -228,20 +236,21 @@ impl Config {
             let key = key_opt.unwrap();
             let action = action_opt.unwrap();
 
-            config.config.insert(key, action);
+            todo!()
+            // config.config.insert(key, action);
         }
 
         Ok(config)
     }
 
-    pub fn map(&self, e: Event) -> Option<Action> {
+    pub fn map(&self, e: Event, mode: Mode) -> Option<Action> {
         use termion::event::{Key::*, MouseButton};
         match e {
             Event::Key(Char(c)) => {
-                if let Some(action) = self.config.get(&Char(c)).cloned() {
+                if let Some(action) = self.config.get(&(mode, Char(c))).cloned() {
                     Some(action)
                 } else {
-                    Some(Action::Char(c))
+                    Some(Action::Char(mode, c))
                 }
             },
             Event::Mouse(MouseEvent::Press(MouseButton::Right, x, y)) => {
@@ -251,7 +260,7 @@ impl Config {
             Event::Mouse(MouseEvent::Release(x, y)) => Some(Action::Release(x, y)),
             Event::Mouse(MouseEvent::Hold(..)) => None,
             Event::Key(other) => {
-                let lookup = self.config.get(&other).cloned();
+                let lookup = self.config.get(&(mode, other)).cloned();
                 if lookup.is_none() {
                     warn!("Weird event {:?}", other);
                 }

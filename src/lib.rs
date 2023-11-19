@@ -22,7 +22,7 @@ use regex::Regex;
 
 pub use crate::{
     colors::random_fg_color,
-    config::{Action, Config},
+    config::{Action, Config, Mode},
     dateparse::dateparse,
     logging::init_screen_log,
     meta::Meta,

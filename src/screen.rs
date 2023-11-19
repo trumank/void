@@ -25,7 +25,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     cost, dateparse, distances, logging, now, plot, random_fg_color, re_matches, serialization,
-    Action, Config, Coords, Dir, Node, NodeID, Pack, TagDB,
+    Action, Config, Coords, Dir, Mode, Node, NodeID, Pack, TagDB,
 };
 
 pub struct Screen {
@@ -35,6 +35,7 @@ pub struct Screen {
     pub work_path: Option<String>,
     pub autosave_every: usize,
     pub config: Config,
+    mode: Mode,
 
     // screen dimensions as detected during the current draw() cycle
     pub dims: Coords,
@@ -87,6 +88,7 @@ impl Default for Screen {
             ..Default::default()
         };
         let mut screen = Screen {
+            mode: Mode::Normal,
             autosave_every: 25,
             config: Config::default(),
             arrows: vec![],
@@ -166,8 +168,11 @@ impl Screen {
 
     // return of false signals to the caller that we are done in this view
     pub fn handle_event(&mut self, evt: Event) -> bool {
-        match self.config.map(evt) {
+        match self.config.map(evt, self.mode) {
             Some(e) => match e {
+                Action::Mode(mode) => {
+                    self.mode = mode;
+                },
                 Action::LeftClick(x, y) => {
                     let internal_coords = self.screen_to_internal_xy((x, y));
                     self.click_screen(internal_coords)
@@ -180,18 +185,21 @@ impl Screen {
                     self.release(internal_coords)
                 },
                 // Write character to selection
-                Action::Char(c) if self.selected.is_some() => {
-                    self.append(c);
+                Action::Char(mode, c) if self.selected.is_some() => {
+                    if mode == Mode::Insert {
+                        self.append(c);
+                    }
                 },
-                Action::Char('/') => {
+                Action::Char(Mode::Normal, '/') => {
                     self.search_forward();
                 },
-                Action::Char('?') => {
+                Action::Char(Mode::Normal, '?') => {
                     self.search_backward();
                 },
-                Action::Char(c) => {
+                Action::Char(Mode::Normal, c) => {
                     self.prefix_jump_to(c.to_string());
                 },
+                Action::Char(_, _) => {},
                 Action::Help => self.help(),
                 Action::UnselectRet => return self.unselect().is_some(),
                 Action::ScrollUp => self.scroll_up(),
@@ -995,6 +1003,7 @@ impl Screen {
             } else {
                 self.delete_recursive(node_id);
             }
+            self.mode = Mode::Insert;
         }
     }
 
@@ -1041,6 +1050,7 @@ impl Screen {
                     self.delete_recursive(node_id);
                 }
             }
+            self.mode = Mode::Insert;
         }
     }
 
@@ -1075,6 +1085,7 @@ impl Screen {
             y_cursor += 1;
         }
         self.create_anchor((from_x.unwrap(), y_cursor));
+        self.mode = Mode::Insert;
     }
 
     fn create_anchor(&mut self, coords: Coords) {
@@ -2026,6 +2037,8 @@ impl Screen {
         if self.should_auto_arrange() {
             header_text.push_str(" [auto-arrange] ");
         }
+
+        header_text.push_str(&format!("│{:?}", self.mode));
 
         let (plot, finished_today) = self.last_week_of_done_tasks();
         let plot_line = format!("│{}│({} today)", plot, finished_today);
